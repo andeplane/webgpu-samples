@@ -70,11 +70,6 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
         {
           binding: 1,
           visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: 'read-only-storage' },
-        },
-        {
-          binding: 2,
-          visibility: GPUShaderStage.COMPUTE,
           buffer: { type: 'storage' },
         },
       ],
@@ -269,118 +264,40 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     return particleIndex;
   }
 
-  function createFccLattice(
-    systemLength: number,
-    latticeConstant: number,
-    particleData: Float32Array
-  ) {
-    let particleIndex = 0;
-    const numCells = systemLength / latticeConstant;
-    for (let i = 0; i < numCells; i++) {
-      for (let j = 0; j < numCells; j++) {
-        const x = i * latticeConstant;
-        const y = j * latticeConstant;
-        particleData[9 * particleIndex + 0] = x;
-        particleData[9 * particleIndex + 1] = y;
-        initialParticleData[9 * particleIndex + 2] =
-          2 * (Math.random() - 0.5) * 0.1;
-        initialParticleData[9 * particleIndex + 3] =
-          2 * (Math.random() - 0.5) * 0.1;
-        particleIndex++;
-
-        particleData[9 * particleIndex + 0] = x + latticeConstant / 2;
-        particleData[9 * particleIndex + 1] = y + latticeConstant / 2;
-        initialParticleData[9 * particleIndex + 2] =
-          2 * (Math.random() - 0.5) * 0.1;
-        initialParticleData[9 * particleIndex + 3] =
-          2 * (Math.random() - 0.5) * 0.1;
-        particleIndex++;
-
-        particleData[9 * particleIndex + 0] = x + latticeConstant / 2;
-        particleData[9 * particleIndex + 1] = y;
-        initialParticleData[9 * particleIndex + 2] =
-          2 * (Math.random() - 0.5) * 0.1;
-        initialParticleData[9 * particleIndex + 3] =
-          2 * (Math.random() - 0.5) * 0.1;
-        particleIndex++;
-
-        particleData[9 * particleIndex + 0] = x;
-        particleData[9 * particleIndex + 1] = y + latticeConstant / 2;
-        initialParticleData[9 * particleIndex + 2] =
-          2 * (Math.random() - 0.5) * 0.1;
-        initialParticleData[9 * particleIndex + 3] =
-          2 * (Math.random() - 0.5) * 0.1;
-        particleIndex++;
-      }
-    }
-    return particleIndex;
-  }
-
   const maxNumParticles = 256;
   const latticeConstant = 1.5;
   let initialParticleData = new Float32Array(maxNumParticles * 9);
   const numParticles = createFCC(2, latticeConstant, initialParticleData);
-  console.log('Created ', numParticles, ' particles');
   initialParticleData = initialParticleData.slice(0, numParticles * 9);
-  console.log('initialParticleData.byteLength', initialParticleData.byteLength);
-  // for (let i = 0; i < numParticles; ++i) {
-  //   initialParticleData[6 * i + 0] = 2 * (Math.random() - 0.5);
-  //   initialParticleData[6 * i + 1] = 2 * (Math.random() - 0.5);
-  //   initialParticleData[6 * i + 2] = 2 * (Math.random() - 0.5) * 0.1;
-  //   initialParticleData[6 * i + 3] = 2 * (Math.random() - 0.5) * 0.1;
-  //   initialParticleData[6 * i + 4] = 0;
-  //   initialParticleData[6 * i + 5] = 0;
-  // }
 
-  // initialParticleData[6 * 0 + 0] = 0.0;
-  // initialParticleData[6 * 0 + 1] = 0.0;
-  // initialParticleData[6 * 1 + 0] = 0.8;
-  // initialParticleData[6 * 1 + 1] = 0.8;
+  const particleBuffer: GPUBuffer = device.createBuffer({
+    size: initialParticleData.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+    mappedAtCreation: true,
+  });
 
-  const particleBuffers: GPUBuffer[] = new Array(2);
-  const particleBindGroups: GPUBindGroup[] = new Array(2);
+  new Float32Array(particleBuffer.getMappedRange()).set(initialParticleData);
 
-  for (let i = 0; i < 2; ++i) {
-    particleBuffers[i] = device.createBuffer({
-      size: initialParticleData.byteLength,
-      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-      mappedAtCreation: true,
-    });
-    new Float32Array(particleBuffers[i].getMappedRange()).set(
-      initialParticleData
-    );
-    particleBuffers[i].unmap();
-  }
-
-  for (let i = 0; i < 2; ++i) {
-    particleBindGroups[i] = device.createBindGroup({
-      layout: particleBindGroupLayout,
-      entries: [
-        {
-          binding: 0,
-          resource: {
-            buffer: simParamBuffer,
-          },
+  particleBuffer.unmap();
+  const particleBindGroup = device.createBindGroup({
+    layout: particleBindGroupLayout,
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: simParamBuffer,
         },
-        {
-          binding: 1,
-          resource: {
-            buffer: particleBuffers[i],
-            offset: 0,
-            size: initialParticleData.byteLength,
-          },
+      },
+      {
+        binding: 1,
+        resource: {
+          buffer: particleBuffer,
+          offset: 0,
+          size: initialParticleData.byteLength,
         },
-        {
-          binding: 2,
-          resource: {
-            buffer: particleBuffers[(i + 1) % 2],
-            offset: 0,
-            size: initialParticleData.byteLength,
-          },
-        },
-      ],
-    });
-  }
+      },
+    ],
+  });
 
   let t = 0;
 
@@ -446,21 +363,21 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     {
       const passEncoder = commandEncoder.beginComputePass();
       passEncoder.setPipeline(updateVelocitiesPipeline);
-      passEncoder.setBindGroup(0, particleBindGroups[t % 2]);
+      passEncoder.setBindGroup(0, particleBindGroup);
       passEncoder.dispatchWorkgroups(Math.ceil(numParticles / 64));
       passEncoder.end();
     }
     {
       const passEncoder = commandEncoder.beginComputePass();
       passEncoder.setPipeline(updatePositionsPipeline);
-      passEncoder.setBindGroup(0, particleBindGroups[t % 2]);
+      passEncoder.setBindGroup(0, particleBindGroup);
       passEncoder.dispatchWorkgroups(Math.ceil(numParticles / 64));
       passEncoder.end();
     }
     {
       const passEncoder = commandEncoder.beginComputePass();
       passEncoder.setPipeline(calculateForcesPipeline);
-      passEncoder.setBindGroup(0, particleBindGroups[t % 2]);
+      passEncoder.setBindGroup(0, particleBindGroup);
       passEncoder.dispatchWorkgroups(Math.ceil(numParticles / 64));
       passEncoder.end();
     }
@@ -468,7 +385,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
       const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
       passEncoder.setPipeline(renderPipeline);
       passEncoder.setBindGroup(0, cameraBindGroup);
-      passEncoder.setVertexBuffer(0, particleBuffers[(t + 1) % 2]);
+      passEncoder.setVertexBuffer(0, particleBuffer);
       passEncoder.setVertexBuffer(1, spriteVertexBuffer);
       passEncoder.draw(3, numParticles, 0, 0);
       passEncoder.end();

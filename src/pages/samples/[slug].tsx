@@ -22,6 +22,9 @@ export const pages = {
   fractalCube: dynamic(() => import('../../sample/fractalCube/main')),
   cubemap: dynamic(() => import('../../sample/cubemap/main')),
   computeBoids: dynamic(() => import('../../sample/computeBoids/main')),
+  molecularDynamics: dynamic(
+    () => import('../../sample/molecularDynamics/main')
+  ),
   animometer: dynamic(() => import('../../sample/animometer/main')),
   videoUploading: dynamic(() => import('../../sample/videoUploading/main')),
   videoUploadingWebCodecs: dynamic(

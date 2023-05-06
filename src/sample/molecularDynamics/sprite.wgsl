@@ -28,9 +28,10 @@ fn vert_main(
     (a_pos.x * sin(angle)) + (a_pos.y * cos(angle)),
     0.0
   );
-  
+
   var output : VertexOutput;
-  output.position = common_uniforms.mvp * vec4(pos + a_particlePos, 1.0);
+  // output.position = common_uniforms.mvp * vec4(pos + a_particlePos, 1.0);
+  output.position = vec4(pos + a_particlePos, 1.0);
   output.color = vec4(
     1.0 - sin(angle + 1.0) - a_particleVel.y,
     pos.x * 100.0 - a_particleVel.y + 0.1,

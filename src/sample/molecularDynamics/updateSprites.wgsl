@@ -23,7 +23,7 @@ fn calculateForces(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>
   var force = vec3(0.0, 0.0, 0.0);
   var sigma6 = pow(params.sigma, 6.0);
   var epsilon24 = 24.0 * params.epsilon;
-  
+
   for (var j = 0u; j < arrayLength(&particles.particles); j++) {
     if (j == i) {
       continue;
@@ -47,20 +47,20 @@ fn calculateForces(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>
     } else if (deltaPos.z < -1.0) {
       deltaPos.z += 2.0;
     }
-    
+
     var r2 = dot(deltaPos, deltaPos);
     if (r2 > params.cutoff*params.cutoff || r2 < 0.0001) {
       continue;
     }
     var oneOverDr2 = 1.0/r2;
     var oneOverDr6 = oneOverDr2*oneOverDr2*oneOverDr2;
-    force -= -epsilon24*sigma6*oneOverDr6*(2*sigma6*oneOverDr6 - 1)*oneOverDr2 * deltaPos;
+    force -= -epsilon24*sigma6*oneOverDr6*(2.0*sigma6*oneOverDr6 - 1.0)*oneOverDr2 * deltaPos;
   }
-  // particles.particles[i].force = force;
+  particles.particles[i].force = force;
 }
 
 @compute @workgroup_size(64)
-fn updateVelocities(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) { 
+fn updateVelocities(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
   var i = GlobalInvocationID.x;
   var vel = particles.particles[i].vel;
   var force = particles.particles[i].force;
@@ -69,11 +69,11 @@ fn updateVelocities(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32
 }
 
 @compute @workgroup_size(64)
-fn updatePositions(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) { 
+fn updatePositions(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
   var i = GlobalInvocationID.x;
   var pos = particles.particles[i].pos;
   var vel = particles.particles[i].vel;
-  
+
   var newPos = pos + vel * params.deltaT;
   if (newPos.x > 1.0) {
     newPos.x -= 2.0;

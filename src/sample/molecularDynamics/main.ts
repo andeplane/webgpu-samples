@@ -30,6 +30,9 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
+  const particleSizeInFloats = 4 * 3;
+  const particleSizeInBytes = particleSizeInFloats * 4;
+
   const cameraBindGroupLayout = device.createBindGroupLayout({
     label: 'Camera.bindGroupLayout',
     entries: [
@@ -86,7 +89,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
       buffers: [
         {
           // instanced particles buffer
-          arrayStride: 9 * 4,
+          arrayStride: particleSizeInBytes,
           stepMode: 'instance',
           attributes: [
             {
@@ -98,7 +101,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
             {
               // instance velocity
               shaderLocation: 1,
-              offset: 3 * 4,
+              offset: 4 * 4,
               format: 'float32x3',
             },
           ],
@@ -190,7 +193,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   new Float32Array(spriteVertexBuffer.getMappedRange()).set(vertexBufferData);
   spriteVertexBuffer.unmap();
 
-  const scaleFactor = 500;
+  const scaleFactor = 40;
   const simParams = {
     deltaT: 0.01,
     epsilon: 1.0 / (scaleFactor * scaleFactor),
@@ -246,14 +249,14 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
             const y = j + basisVectors[v][1];
             const z = k + basisVectors[v][2];
 
-            particleData[9 * particleIndex + 0] = x * latticeConstant;
-            particleData[9 * particleIndex + 1] = y * latticeConstant;
-            particleData[9 * particleIndex + 2] = z * latticeConstant;
-            initialParticleData[9 * particleIndex + 3] =
+            particleData[particleSizeInFloats * particleIndex + 0] = x * latticeConstant;
+            particleData[particleSizeInFloats * particleIndex + 1] = y * latticeConstant;
+            particleData[particleSizeInFloats * particleIndex + 2] = z * latticeConstant;
+            initialParticleData[particleSizeInFloats * particleIndex + 4] =
               2 * (Math.random() - 0.5) * 0.1;
-            initialParticleData[9 * particleIndex + 4] =
+            initialParticleData[particleSizeInFloats * particleIndex + 5] =
               2 * (Math.random() - 0.5) * 0.1;
-            initialParticleData[9 * particleIndex + 5] =
+            initialParticleData[particleSizeInFloats * particleIndex + 6] =
               2 * (Math.random() - 0.5) * 0.1;
 
             particleIndex++;
@@ -264,11 +267,12 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     return particleIndex;
   }
 
-  const maxNumParticles = 256;
-  const latticeConstant = 1.5;
-  let initialParticleData = new Float32Array(maxNumParticles * 9);
+  const maxNumParticles = 100000;
+  const latticeConstant = 0.2;
+  let initialParticleData = new Float32Array(maxNumParticles * particleSizeInFloats);
   const numParticles = createFCC(2, latticeConstant, initialParticleData);
-  initialParticleData = initialParticleData.slice(0, numParticles * 9);
+  console.log(`Created ${numParticles} particles`);
+  initialParticleData = initialParticleData.slice(0, numParticles * particleSizeInFloats);
 
   const particleBuffer: GPUBuffer = device.createBuffer({
     size: initialParticleData.byteLength,
